@@ -8,46 +8,44 @@ import moderngl
 
 SCR_WIDTH = 1920
 SCR_HEIGHT = 1080
+SCR_WIDTH_HALF = SCR_WIDTH / 2
+SCR_HEIGHT_HALF = SCR_HEIGHT / 2
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 
-vs_str = """
+VERTEX_ARRAY = [
+    # position (x, y), uv coords (x, y)
+    -1.0, 1.0, 0.0, 0.0,
+    1.0, 1.0, 1.0, 0.0,
+    -1.0, -1.0, 0.0, 1.0,
+    1.0, -1.0, 1.0, 1.0,
+]
+
+VERTEX_SHADER = """
 #version 330 core
 
 in vec2 vert;
 in vec2 texcoord;
 out vec2 uv;
 
+uniform vec2 iMouse;
+uniform vec2 iResolution;
+
 void main() {
     uv = texcoord;
-    gl_Position = vec4(vert, 0.0, 1.0);
+    vec2 translate = (iMouse-(iResolution*vec2(0.5))) / iResolution; //(iMouse-(iResolution*vec2(0.5, 0.5)) / iResolution;
+    translate.x = -translate.x;
+    vec2 v = vert - translate;
+    gl_Position = vec4(v, 0.0, 1.0);
 }
 """
 
-# ps_str = """
-# #version 330 core
-
-# uniform sampler2D iChannel0;
-# uniform float iTime;
-
-# in vec2 uv;
-# out vec4 fragColor;
-
-# void main() {
-#     vec2 sample_pos = vec2(uv.x + sin(uv.y + iTime * 0.01), uv.y);
-#     fragColor = vec4(texture(iChannel0, sample_pos).rgb, 1.0);
-#     //fragColor = vec4(texture(iChannel0, uv).rgb, 1.0);
-# }
-# """
-
-ps_str = """
+FRAGMENT_SHADER = """
 #version 330 core
 
 uniform sampler2D iChannel0;
 uniform float iTime;
-//uniform vec3 iResolution;
-//uniform int iFrame;
 
 in vec2 uv;
 out vec4 fragColor;
@@ -67,7 +65,7 @@ void main() {
     vec4 color = texture(iChannel0, uv);
     vec3 warped = color.rgb * dot(color.rgb, colorWarp.rgb);
     warped = mix(warped, colorWarp.rgb, smoothstep(ripples, ripples + dist, dist));
-    fragColor = vec4(warped.rgb, ripples - iTime);
+    fragColor = vec4(warped.rgb, colorWarp.g - iTime);
 }
 """
 if __name__ == "__main__":
@@ -79,18 +77,14 @@ if __name__ == "__main__":
     font = pygame.font.SysFont("Tahoma", font_size)
     # screen = pygame.display.set_mode((SCR_WIDTH, SCR_HEIGHT))
     pygame.display.set_caption("Keyboard Input")
+    pygame.mouse.set_pos(SCR_WIDTH_HALF, SCR_HEIGHT_HALF)
+    pygame.mouse.set_visible(False)
 
     ctx = moderngl.create_context()
     ctx.enable(moderngl.BLEND)
 
-    quad_buffer = ctx.buffer(data=array.array('f', [
-        # position (x, y), uv coords (x, y)
-        -1.0, 1.0, 0.0, 0.0,
-        1.0, 1.0, 1.0, 0.0,
-        -1.0, -1.0, 0.0, 1.0,
-        1.0, -1.0, 1.0, 1.0,
-    ]))
-    program = ctx.program(vertex_shader=vs_str, fragment_shader=ps_str)
+    quad_buffer = ctx.buffer(data=array.array('f', VERTEX_ARRAY))
+    program = ctx.program(vertex_shader=VERTEX_SHADER, fragment_shader=FRAGMENT_SHADER)
     vao = ctx.vertex_array(program, [(quad_buffer, "2f 2f", "vert", "texcoord")])
 
     tex = ctx.texture(display.get_size(), 4)
@@ -104,6 +98,7 @@ if __name__ == "__main__":
     done = False
     frame_num = 0
     while not done:
+        mx, my = pygame.mouse.get_pos()
         for event in pygame.event.get():
             if event.type == QUIT:
                 done = True
@@ -144,8 +139,8 @@ if __name__ == "__main__":
         tex.use(0)
         program["iChannel0"] = 0
         program["iTime"] = float(t)
-        # program["iFrame"] = frame_num
-        # program["iResolution"] = (float(SCR_WIDTH), float(SCR_HEIGHT), 1.0)
+        program["iMouse"] = (mx, my)
+        program["iResolution"] = (float(SCR_WIDTH), float(SCR_HEIGHT))
         # ctx.screen.clear(color=(0.0, 0.0, 0.0, 1.0))
         vao.render(mode=moderngl.TRIANGLE_STRIP)
 

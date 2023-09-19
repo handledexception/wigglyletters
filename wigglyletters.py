@@ -1,4 +1,14 @@
 
+"""
+Wiggly Letters
+
+Copyright (c) 2023 Paul Hindt
+
+This software may be distributed, free of charge, with no strings attached.
+
+The author is not to be held responsible for any damages incurred by the usage of this software.
+"""
+
 import array
 import sys
 
